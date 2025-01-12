@@ -1,4 +1,4 @@
-import { parseBooleanFromText, IAgentRuntime } from "@elizaos/core";
+import { IAgentRuntime, parseBooleanFromText } from "@elizaos/core";
 import { z, ZodError } from "zod";
 
 export const DEFAULT_MAX_TWEET_LENGTH = 280;
@@ -61,6 +61,7 @@ export const twitterEnvSchema = z.object({
     ACTION_INTERVAL: z.number().int(),
     POST_IMMEDIATELY: z.boolean(),
     TWITTER_SPACES_ENABLE: z.boolean().default(false),
+    ONLY_POST_ACTIONS: z.boolean().default(true),
 });
 
 export type TwitterConfig = z.infer<typeof twitterEnvSchema>;

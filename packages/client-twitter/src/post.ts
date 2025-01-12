@@ -1,21 +1,23 @@
-import { Tweet } from "agent-twitter-client";
 import {
+    Action,
     composeContext,
+    elizaLogger,
     generateText,
+    generateTweetActions,
     getEmbeddingZeroVector,
     IAgentRuntime,
+    IImageDescriptionService,
+    Memory,
     ModelClass,
+    postActionResponseFooter,
     stringToUuid,
     UUID,
 } from "@elizaos/core";
-import { elizaLogger } from "@elizaos/core";
+import { Tweet } from "agent-twitter-client";
 import { ClientBase } from "./base.ts";
-import { postActionResponseFooter } from "@elizaos/core";
-import { generateTweetActions } from "@elizaos/core";
-import { IImageDescriptionService, ServiceType } from "@elizaos/core";
-import { buildConversationThread } from "./utils.ts";
-import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
+import { twitterMessageHandlerTemplate } from "./interactions.ts";
+import { buildConversationThread } from "./utils.ts";
 
 const twitterPostTemplate = `
 # Areas of Expertise
@@ -106,6 +108,7 @@ export class TwitterPostClient {
     private lastProcessTime: number = 0;
     private stopProcessingActions: boolean = false;
     private isDryRun: boolean;
+    postAction: Action;
 
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
@@ -145,6 +148,55 @@ export class TwitterPostClient {
                 "Twitter client initialized in dry run mode - no actual tweets should be posted"
             );
         }
+
+        // Initialize the post action
+        this.postAction = {
+            name: "POST_TWEET",
+            description: "Post a new tweet to Twitter",
+            similes: [
+                "write a tweet",
+                "post to Twitter",
+                "share on Twitter",
+                "tweet something",
+                "TWEET"
+            ],
+            examples: [[
+                {
+                    user: "user",
+                    content: {
+                        text: "Please post a tweet about AI",
+                        action: "POST_TWEET",
+                    }
+                }
+            ]],
+            handler: async (runtime: IAgentRuntime, message: Memory) => {
+                const roomId = stringToUuid("twitter_post_room-" + this.twitterUsername);
+
+                await this.generateNewTweet(message.content.text);
+                return {
+                    text: "Tweet has been generated and posted",
+                    action: "POST_TWEET"
+                };
+            },
+            validate: async (runtime: IAgentRuntime, message: Memory) => {
+                // Add any validation logic here
+                // For example, check if we're in cooldown period
+                const lastPost = await runtime.cacheManager.get<{ timestamp: number }>(
+                    "twitter/" + this.twitterUsername + "/lastPost"
+                );
+                if (lastPost) {
+                    const cooldownPeriod = this.client.twitterConfig.POST_INTERVAL_MIN * 60 * 1000;
+                    if (Date.now() - lastPost.timestamp < cooldownPeriod) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+            suppressInitialMessage: false
+        };
+
+        // Register the action with the runtime
+        runtime.registerAction(this.postAction);
     }
 
     async start() {
@@ -398,10 +450,11 @@ export class TwitterPostClient {
     }
 
     /**
-     * Generates and posts a new tweet. If isDryRun is true, only logs what would have been posted.
+     * Generates and posts a new tweet based on optional instruction text.
+     * If no instruction is provided, generates tweet from character topics.
      */
-    private async generateNewTweet() {
-        elizaLogger.log("Generating new tweet");
+    private async generateNewTweet(instruction?: string) {
+        elizaLogger.log("Generating new tweet" + (instruction ? ` with instruction: ${instruction}` : ""));
 
         try {
             const roomId = stringToUuid(
@@ -421,13 +474,18 @@ export class TwitterPostClient {
                     userId: this.runtime.agentId,
                     roomId: roomId,
                     agentId: this.runtime.agentId,
+
                     content: {
-                        text: topics || "",
+                        ///prefer direct instructions over random topics
+                        //text: instruction || topics || "",
+                        text: instruction || topics || "",
                         action: "TWEET",
                     },
                 },
                 {
                     twitterUserName: this.client.profile.username,
+                    //override topic if instruction is provided
+                    ...(instruction ? { topic: instruction } : {})
                 }
             );
 

@@ -134,6 +134,19 @@ You may need to install Sharp. If you see an error when starting up, try install
 pnpm install --include=optional sharp
 ```
 
+##
+
+Curl client
+
+```
+curl -X POST http://localhost:3000/61bca681-bcfd-0d9a-a709-ff646ab3e11e/message \
+-H "Content-Type: application/json" \
+-d '{
+  "userId": "user",
+  "text": "testing"
+}'
+```
+
 ### Community & contact
 
 - [GitHub Issues](https://github.com/elizaos/eliza/issues). Best for: bugs you encounter using Eliza, and feature proposals.

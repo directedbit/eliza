@@ -1,30 +1,28 @@
-import bodyParser from "body-parser";
-import cors from "cors";
-import express, { Request as ExpressRequest } from "express";
-import multer from "multer";
 import {
+    AgentRuntime,
+    Client,
+    composeContext,
+    Content,
     elizaLogger,
     generateCaption,
     generateImage,
-    Media,
-    getEmbeddingZeroVector
-} from "@elizaos/core";
-import { composeContext } from "@elizaos/core";
-import { generateMessageResponse } from "@elizaos/core";
-import { messageCompletionFooter } from "@elizaos/core";
-import { AgentRuntime } from "@elizaos/core";
-import {
-    Content,
-    Memory,
-    ModelClass,
-    Client,
+    generateMessageResponse,
+    getEmbeddingZeroVector,
     IAgentRuntime,
+    Media,
+    Memory,
+    messageCompletionFooter,
+    ModelClass,
+    settings,
+    stringToUuid
 } from "@elizaos/core";
-import { stringToUuid } from "@elizaos/core";
-import { settings } from "@elizaos/core";
-import { createApiRouter } from "./api.ts";
+import bodyParser from "body-parser";
+import cors from "cors";
+import express, { Request as ExpressRequest } from "express";
 import * as fs from "fs";
+import multer from "multer";
 import * as path from "path";
+import { createApiRouter } from "./api.ts";
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -169,6 +167,8 @@ export class DirectClient {
                 const userId = stringToUuid(req.body.userId ?? "user");
 
                 let runtime = this.agents.get(agentId);
+                elizaLogger.log("roomID", roomId);
+                elizaLogger.log("userId", userId);
 
                 // if runtime is null, look for runtime with the same name
                 if (!runtime) {

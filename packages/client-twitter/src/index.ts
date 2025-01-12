@@ -4,7 +4,7 @@ import {
     IAgentRuntime,
 } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
-import { validateTwitterConfig, TwitterConfig } from "./environment.ts";
+import { TwitterConfig, validateTwitterConfig } from "./environment.ts";
 import { TwitterInteractionClient } from "./interactions.ts";
 import { TwitterPostClient } from "./post.ts";
 import { TwitterSearchClient } from "./search.ts";
@@ -63,20 +63,24 @@ export const TwitterClientInterface: Client = {
         // Initialize login/session
         await manager.client.init();
 
-        // Start the posting loop
-        await manager.post.start();
+        if (!twitterConfig.ONLY_POST_ACTIONS) {
+            // Start the posting loop
+            await manager.post.start();
 
-        // Start the search logic if it exists
-        if (manager.search) {
-            await manager.search.start();
-        }
+            // Start the search logic if it exists
+            if (manager.search) {
+                await manager.search.start();
+            }
 
-        // Start interactions (mentions, replies)
-        await manager.interaction.start();
+            // Start interactions (mentions, replies)
+            await manager.interaction.start();
 
-        // If Spaces are enabled, start the periodic check
-        if (manager.space) {
-            manager.space.startPeriodicSpaceCheck();
+            // If Spaces are enabled, start the periodic check
+            if (manager.space) {
+                manager.space.startPeriodicSpaceCheck();
+            }
+        }else{
+            elizaLogger.warn("Only responding to actions ")
         }
 
         return manager;
